@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Power</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 16px; }
+    h1 { text-align: center; color: #facc15; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .countries { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+    .country { background: #1e293b; border: 2px solid #334155; border-radius: 10px; padding: 12px; cursor: pointer; transition: 0.2s; }
+    .country:hover, .country.selected { border-color: #facc15; }
+    .country h3 { margin: 0 0 6px; color: #60a5fa; }
+    .stats { font-size: 13px; line-height: 1.4; }
+    .controls { background: #1e293b; padding: 16px; border-radius: 10px; margin-top: 16px; }
+    button { background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin: 4px; }
+    button:hover { background: #dc2626; }
+    button.blue { background: #3b82f6; }
+    button.green { background: #22c55e; }
+    .log { background: #0f172a; border: 1px solid #334155; padding: 12px; height: 160px; overflow-y: auto; font-size: 14px; margin-top: 12px; }
+    .player-info { background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>World Power</h1>
+    <p style="text-align:center;">Turn-based modern warfare & economy strategy. Choose a country and dominate.</p>
+    <div id="player-info" class="player-info">Select a country to begin.</div>
+    <div id="countries" class="countries"></div>
+    <div class="controls">
+      <button onclick="nextTurn()" class="green">Next Turn</button>
+      <button onclick="investMilitary()" class="blue">Invest in Military</button>
+      <button onclick="attack()">Attack Selected</button>
+      <button onclick="diplomacy()">Diplomacy / Alliance</button>
+      <button onclick="research()">Research Tech</button>
+      <div id="log" class="log">Welcome to World Power. Select your starting nation.</div>
+    </div>
+  </div>
+  <script>
+    const countries = [
+      { id: "US", name: "United States", gov: "Federal Republic", mil: 975, gdp: 28000, stability: 85, owner: null },
+      { id: "CN", name: "China", gov: "Authoritarian", mil: 352, gdp: 19000, stability: 75, owner: null },
+      { id: "RU", name: "Russia", gov: "Authoritarian", mil: 166, gdp: 2100, stability: 60, owner: null },
+      { id: "DE", name: "Germany", gov: "Federal Republic", mil: 112, gdp: 4500, stability: 90, owner: null },
+      { id: "IN", name: "India", gov: "Federal Republic", mil: 98, gdp: 4000, stability: 70, owner: null },
+      { id: "UK", name: "United Kingdom", gov: "Constitutional Monarchy", mil: 92, gdp: 3500, stability: 88, owner: null },
+      { id: "SA", name: "Saudi Arabia", gov: "Absolute Monarchy", mil: 86, gdp: 1100, stability: 65, owner: null },
+      { id: "UA", name: "Ukraine", gov: "Republic", mil: 81, gdp: 200, stability: 40, owner: null },
+      { id: "FR", name: "France", gov: "Republic", mil: 68, gdp: 3100, stability: 82, owner: null },
+      { id: "JP", name: "Japan", gov: "Constitutional Monarchy", mil: 62, gdp: 4200, stability: 92, owner: null }
+    ];
+
+    let playerCountry = null;
+    let turn = 1;
+    let money = 1000;
+    let selectedTarget = null;
+
+    function log(msg) {
+      const el = document.getElementById("log");
+      el.innerHTML = msg + "<br>" + el.innerHTML;
+    }
+
+    function render() {
+      const container = document.getElementById("countries");
+      container.innerHTML = "";
+      countries.forEach(c => {
+        const div = document.createElement("div");
+        div.className = "country" + (selectedTarget === c.id ? " selected" : "");
+        div.innerHTML = `<h3>${c.name}</h3><div class="stats">Gov: ${c.gov}<br>Mil Power: ${c.mil}<br>Economy: ${c.gdp}<br>Stability: ${c.stability}%<br>${c.owner ? "Controlled by: " + c.owner : "Independent"}</div>`;
+        div.onclick = () => { selectedTarget = c.id; render(); log("Selected " + c.name); };
+        container.appendChild(div);
+      });
+      if (playerCountry) {
+        const p = countries.find(c => c.id === playerCountry);
+        document.getElementById("player-info").innerHTML = `Turn ${turn} | Playing as <strong>${p.name}</strong> | Money: $${money}B | Military: ${p.mil} | Stability: ${p.stability}%`;
+      }
+    }
+
+    function start(id) {
+      playerCountry = id;
+      const p = countries.find(c => c.id === id);
+      p.owner = "You";
+      money = Math.round(p.gdp / 10);
+      log("You now control " + p.name + ". Build your power.");
+      render();
+    }
+
+    function nextTurn() {
+      if (!playerCountry) { log("Select a country first by clicking one, then press Next Turn to claim it."); return; }
+      turn++;
+      const p = countries.find(c => c.id === playerCountry);
+      const income = Math.round(p.gdp * 0.05 * (p.stability / 100));
+      money += income;
+      log(`Turn ${turn}: Economy generated +$${income}B. Total money: $${money}B`);
+      // Simple AI moves
+      countries.forEach(c => {
+        if (c.owner !== "You" && Math.random() < 0.3) {
+          c.mil = Math.round(c.mil * 1.02);
+        }
+      });
+      render();
+    }
+
+    function investMilitary() {
+      if (!playerCountry || money < 50) { log("Need a country and at least $50B."); return; }
+      money -= 50;
+      const p = countries.find(c => c.id === playerCountry);
+      p.mil = Math.round(p.mil * 1.08);
+      log("Invested $50B in military. Power increased.");
+      render();
+    }
+
+    function attack() {
+      if (!playerCountry || !selectedTarget || selectedTarget === playerCountry) { log("Select a different country to attack."); return; }
+      const attacker = countries.find(c => c.id === playerCountry);
+      const defender = countries.find(c => c.id === selectedTarget);
+      const atkPower = attacker.mil * (attacker.stability / 100);
+      const defPower = defender.mil * (defender.stability / 100) * 1.2;
+      if (atkPower > defPower * 0.7) {
+        defender.owner = "You";
+        defender.mil = Math.round(defender.mil * 0.6);
+        attacker.mil = Math.round(attacker.mil * 0.85);
+        log(`Victory! You captured ${defender.name}. Losses sustained.`);
+      } else {
+        attacker.mil = Math.round(attacker.mil * 0.7);
+        log(`Attack on ${defender.name} failed. Your forces weakened.`);
+      }
+      render();
+    }
+
+    function diplomacy() {
+      if (!selectedTarget) { log("Select a country for diplomacy."); return; }
+      const t = countries.find(c => c.id === selectedTarget);
+      if (Math.random() > 0.5) {
+        t.stability = Math.min(100, t.stability + 5);
+        log(`Diplomatic success with ${t.name}. Relations improved.');
+      } else {
+        log(`Diplomacy with ${t.name} stalled.');
+      }
+      render();
+    }
+
+    function research() {
+      if (money < 100) { log("Need $100B for research."); return; }
+      money -= 100;
+      const p = countries.find(c => c.id === playerCountry);
+      p.mil = Math.round(p.mil * 1.15);
+      p.stability = Math.min(100, p.stability + 3);
+      log("Research breakthrough! Military and stability boosted.");
+      render();
+    }
+
+    // Initial render and auto-start on first click
+    render();
+    document.getElementById("countries").addEventListener("click", e => {
+      if (!playerCountry && e.target.closest(".country")) {
+        const name = e.target.closest(".country").querySelector("h3").textContent;
+        const c = countries.find(x => x.name === name);
+        if (c) start(c.id);
+      }
+    });
+  </script>
+</body>
+</html>
